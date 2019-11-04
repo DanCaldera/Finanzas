@@ -199,7 +199,7 @@ class Person {
     }
 }
 
-var me = Person(name: "Andres", lastName: "Silva")
+var me = Person(name: "Daniel", lastName: "Caldera")
 
 let account = Acccount(amount: 100_000, name: "X bank")
 
