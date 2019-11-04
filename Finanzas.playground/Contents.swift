@@ -1,219 +1,243 @@
-//Este es mi codigo del reto
-protocol checkVality {
-    func checkVality(value: Transaction) -> Float
+import Foundation
+
+extension Date {
+    init(year: Int, month: Int, day: Int) {
+        let calendar = Calendar(identifier: .gregorian)
+        var dateComponents = DateComponents()
+        dateComponents.year = year
+        dateComponents.month = month
+        dateComponents.day = day
+        self = calendar.date(from: dateComponents) ?? Date()
+    }
 }
-protocol invalidateTransaction {
-    func invalidateTransaction(transaction: Transaction)
+
+protocol InvalidateTransaction {
+    func invalidateTrantraction(transaction: Transaction)
 }
 
 protocol Transaction {
-    var transValue: Float { get }
-    var transDescription: String { get }
+    var value: Float { get }
+    var name: String { get }
     var isValid: Bool { get set }
-    var delgate: checkVality? { get set }
+    var delegate: InvalidateTransaction? { get set }
+    var date: Date { get }
 }
 
-class USUARIO {
-    var nombreUsuario: String
-    var apellidoUsuario: String
-    var cuentaUsuario: CUENTA?
-    
-    init(nombreUsuario: String, apellidoUsuario: String) {
-        self.nombreUsuario = nombreUsuario
-        self.apellidoUsuario = apellidoUsuario
+extension Transaction {
+    mutating func invalidateTrantraction() {
+        isValid = false
+        delegate?.invalidateTrantraction(transaction: self)
     }
 }
 
-class CUENTA {
-    var bancoCuenta: String
-    var saldoCuenta: Float {
+protocol TransactionDebit: Transaction {
+    var category: DebitCategories { get }
+}
+
+enum DebitCategories: Int {
+    case health
+    case food, rent, tax, transportation
+    case entertainment = 10
+}
+
+enum TransactionType {
+    case debit(value: Float, name: String, category: DebitCategories, date: Date)
+    case gain(value: Float, name: String, date: Date)
+}
+
+class Debit: TransactionDebit {
+    var date: Date
+    var delegate: InvalidateTransaction?
+    var value: Float
+    var name: String
+    var category: DebitCategories
+    var isValid: Bool = true
+
+    init(value: Float, name: String, category: DebitCategories, date: Date) {
+        self.category = category
+        self.value = value
+        self.name = name
+        self.date = date
+    }
+}
+
+class Gain: Transaction {
+    var date: Date
+    var delegate: InvalidateTransaction?
+    var value: Float
+    var name: String
+    var isValid: Bool = true
+    
+    init(value: Float, name: String, date: Date) {
+        self.value = value
+        self.name = name
+        self.date = date
+    }
+}
+
+class Acccount {
+    var amount: Float = 0 {
         willSet {
-            print("INICIAL:", saldoCuenta)
-        } didSet {
-            print("FINAL:", saldoCuenta)
+            print("Vamos a cambiar el valor", amount, newValue)
+        }
+        didSet {
+            print("Tenemos nuevo valor", amount)
         }
     }
     
-    //TRANSACTIONS
-    var debits: [DEBIT] = []
-    var gains: [GAIN] = []
+    var name: String = ""
+    var transactions: [Transaction] = []
     
-    init(bancoCuenta: String, saldoCuenta: Float) {
-        self.bancoCuenta = bancoCuenta
-        self.saldoCuenta = saldoCuenta
+    var debits: [Debit] = []
+    var gains: [Gain] = []
+    
+    init(amount: Float, name: String) {
+        self.amount = amount
+        self.name = name
     }
     
     @discardableResult
-    func addTransaction(transaction: transactionType) -> Transaction? {
+    func addTransaction(transaction: TransactionType) -> Transaction? {
         switch transaction {
-        case .debit(let dValue, let dDescription, let dType):
-            
-            let debit = DEBIT(
-                transValue: dValue,
-                transDescription: dDescription,
-                isValid: dType
-            )
-            debit.delgate = self
-            
-            if (saldoCuenta - dValue) < 0 {
+        case .debit(let value, let name, let category, let date):
+            if (amount - value) < 0 {
                 return nil
-            } else {
-                debits.append(debit)
-                saldoCuenta -= dValue
-                return debit
             }
             
-        case .gain(let gValue, let gDescription, let gType):
+            let debit = Debit(value: value, name: name, category: category, date: date)
+            debit.delegate = self
             
-            let gain = GAIN(
-                transValue: gValue,
-                transDescription: gDescription,
-                isValid: gType
-            )
-            gain.delgate = self
+            amount -= debit.value
             
+            transactions.append(debit)
+            debits.append(debit)
+            return debit
+        case .gain(let value, let name, let date):
+            let gain = Gain(value: value, name: name, date: date)
+            gain.delegate = self
+            amount += gain.value
+            transactions.append(gain)
             gains.append(gain)
-            saldoCuenta += gValue
             return gain
         }
     }
-}
-
-class DEBIT : Transaction {
-    var transValue: Float
-    var transDescription: String
-    var isValid: Bool
-    var delgate: checkVality?
     
-    init(transValue: Float, transDescription: String, isValid: Bool) {
-        self.transValue = transValue
-        self.transDescription = transDescription
-        self.isValid = isValid
+    func transactionsFor(category: DebitCategories) -> [Transaction] {
+        return transactions.filter({ (transaction) -> Bool in
+            guard let transaction = transaction as? Debit else {
+                return false
+            }
+            
+            return transaction.isValid && transaction.category == category
+        })
     }
 }
 
-class GAIN : Transaction {
-    var transValue: Float
-    var transDescription: String
-    var isValid: Bool
-    var delgate: checkVality?
+extension Acccount: InvalidateTransaction {
+    func invalidateTrantraction(transaction: Transaction) {
+        if transaction is Debit {
+            amount += transaction.value
+        }
+        if transaction is Gain {
+            amount -= transaction.value
+        }
+    }
+}
+
+class Person {
+    var name: String = ""
+    var lastName: String = ""
+    var account: Acccount?
     
-    init(transValue: Float, transDescription: String, isValid: Bool) {
-        self.transValue = transValue
-        self.transDescription = transDescription
-        self.isValid = isValid
-    }
-}
-
-enum debitCategories : String {
-    case work = "Inversión en trabajo"
-    case entertainment = "Ocio"
-    case food = "Víveres"
-}
-
-enum gainCategories : String {
-    case work = "Sueldo"
-    case webSite = "Sitio Web"
-}
-
-enum transactionType {
-    case debit(
-        dValue: Float,
-        dDescription: String,
-        dValid: Bool
-    )
-    case gain(
-        gValue: Float,
-        gDescription: String,
-        gValid: Bool
-    )
-}
-
-extension Transaction {
-    mutating func invalidateTransaction() {
-        isValid = false
-    }
-}
-
-extension Transaction {
-    mutating func checkVality(value: Transaction) -> Float {
-        if value.isValid {
-            return value.transValue
-        } else {
-            return 0
+    var fullName: String {
+        get {
+            return "\(name) \(lastName)"
+        }
+        set {
+            name = String(newValue.split(separator: " ").first ?? "")
+            lastName = "\(newValue.split(separator: " ").last ?? "")"
         }
     }
-}
-
-extension CUENTA : invalidateTransaction {
-    func invalidateTransaction(transaction: Transaction) {
-        if transaction.isValid {
-            print("Succes")
-        } else {
-            print("Denied")
-            if transaction is DEBIT {
-                saldoCuenta += transaction.transValue
-            } else if transaction is GAIN {
-                saldoCuenta -= transaction.transValue
-            }
-        }
+    
+    init(name: String, lastName: String) {
+        self.name = name
+        self.lastName = lastName
     }
 }
 
-extension CUENTA : checkVality {
-    func checkVality(value: Transaction) -> Float {
-        if value.isValid == true {
-            print("FINE!")
-            print(saldoCuenta)
-        } else {
-            print("Something is wrong!")
-            if value is DEBIT {
-                saldoCuenta += value.transValue
-                print(saldoCuenta)
-            } else if value is GAIN {
-                saldoCuenta -= value.transValue
-                print(saldoCuenta)
-            }
-        }
-        return value.transValue
-    }
-}
+var me = Person(name: "Andres", lastName: "Silva")
 
-var me = USUARIO(nombreUsuario: "Daniel", apellidoUsuario: "Caldera")
+let account = Acccount(amount: 100_000, name: "X bank")
 
-me.cuentaUsuario = CUENTA(bancoCuenta: "Bancomer", saldoCuenta: 1_500_000)
+me.account = account
 
-me.cuentaUsuario?.addTransaction(
+print(me.account!)
+
+me.account?.addTransaction(
     transaction: .debit(
-        dValue: 10_000,
-        dDescription: "Un perro",
-        dValid: Bool.random()
-        )
+        value: 20,
+        name: "Cafe con amigos",
+        category: DebitCategories.food,
+        date: Date(year: 2018, month: 11, day: 14)
     )
+)
 
-for debit in me.cuentaUsuario?.debits ?? [] {
-    print(debit.transValue, debit.transDescription, debit.isValid)
+me.account?.addTransaction(
+    transaction: .debit(
+        value: 100,
+        name: "Juego PS4",
+        category: .entertainment,
+        date: Date(year: 2018, month: 11, day: 10)
+    )
+)
+
+me.account?.addTransaction(
+    transaction: .debit(
+        value: 500,
+        name: "PS4",
+        category: .entertainment,
+        date: Date(year: 2018, month: 11, day: 10)
+    )
+)
+
+me.account?.addTransaction(
+    transaction: .gain(
+        value: 1000,
+        name: "Salario",
+        date: Date(year: 2018, month: 11, day: 1)
+    )
+)
+
+var salary = me.account?.addTransaction(
+    transaction: .gain(
+        value: 1000,
+        name: "Salario",
+        date: Date(year: 2018, month: 11, day: 1)
+    )
+)
+
+salary?.invalidateTrantraction()
+
+print(me.account!.amount)
+
+let transactions = me.account?.transactionsFor(category: .entertainment) as? [Debit]
+for transaction in transactions ?? [] {
+    print(
+        transaction.name,
+        transaction.value,
+        transaction.category.rawValue,
+        transaction.date
+    )
 }
 
-print(me.cuentaUsuario!.saldoCuenta)
+for gain in me.account?.gains ?? [] {
+    print(
+        gain.name,
+        gain.isValid,
+        gain.value,
+        gain.date
+    )
+}
 
-var salary =
-    me.cuentaUsuario?.addTransaction (
-        transaction: .gain (
-            gValue: 60_000,
-            gDescription: "Sueldo en Apple",
-            gValid: Bool.random()
-        )
-)
+print(me.account?.amount ?? 0)
 
-var work =
-    me.cuentaUsuario?.addTransaction(
-        transaction: .debit(
-            dValue: 500_000,
-            dDescription: "Me compré una iMac",
-            dValid: false
-        )
-)
-
-print(me.cuentaUsuario?.checkVality(value: salary!) ?? "Oh no!")
-print(me.cuentaUsuario?.checkVality(value: work!) ?? "Oh no!")
