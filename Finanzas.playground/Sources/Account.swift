@@ -12,15 +12,7 @@ public enum AccountExceptions: Error {
 }
 
 public class Acccount {
-    public var amount: Float = 0 {
-        willSet {
-            print("Vamos a cambiar el valor", amount, newValue)
-        }
-        didSet {
-            print("Tenemos nuevo valor", amount)
-        }
-    }
-    
+    public var amount: Float = 0    
     public var name: String = ""
     public var transactions: [Transaction] = []
     public var debits: [Debit] = []
@@ -84,6 +76,19 @@ public class Acccount {
             
             return transaction.isValid && transaction.category == category
         })
+    }
+    
+    public func lifeTimeValue() -> Int {
+        var total: Float = 0
+        for key in budgets.keys {
+            total += budgets[key]!.budget
+        }
+        
+        let months = Int(amount / total)
+        
+        print("Tenemos \(months) de vida")
+        
+        return months
     }
 }
 

@@ -29,7 +29,6 @@ public class Debit: TransactionDebit {
         
         DispatchQueue.main.asyncAfter(deadline: .now()) {
             self.handler?(true, Date())
-            print("Confirmed transaction", Date())
         }
     }
 }

@@ -17,7 +17,6 @@ public class Gain: Transaction {
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             self.handler?(true, Date())
-            print("Confirmed transaction", Date())
         }
     }
 }
